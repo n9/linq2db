@@ -569,7 +569,7 @@ namespace LinqToDB.Linq
 			public static object Sync = new object();
 
 			public static readonly Dictionary<object,Query<int>>    Insert             = new Dictionary<object,Query<int>>();
-			public static readonly Dictionary<object,Query<object>> InsertWithIdentity = new Dictionary<object,Query<object>>();
+			public static readonly Dictionary<object,KeyValuePair<Type, Query<object>>> InsertWithIdentity = new Dictionary<object, KeyValuePair<Type, Query<object>>>();
 			public static readonly Dictionary<object,Query<int>>    InsertOrUpdate     = new Dictionary<object,Query<int>>();
 			public static readonly Dictionary<object,Query<int>>    Update             = new Dictionary<object,Query<int>>();
 			public static readonly Dictionary<object,Query<int>>    Delete             = new Dictionary<object,Query<int>>();
@@ -682,13 +682,13 @@ namespace LinqToDB.Linq
 			if (Equals(default(T), obj))
 				return 0;
 
-			Query<object> ei;
+			KeyValuePair<Type, Query<object>> eix;
 
 			var key = new { dataContext.MappingSchema.ConfigurationID, dataContext.ContextID };
 
-			if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out ei))
+			if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out eix))
 				lock (ObjectOperation<T>.Sync)
-					if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out ei))
+					if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out eix))
 					{
 						var sqlTable = new SqlTable<T>(dataContext.MappingSchema);
 						var sqlQuery = new SelectQuery { QueryType = QueryType.Insert };
@@ -696,10 +696,11 @@ namespace LinqToDB.Linq
 						sqlQuery.Insert.Into         = sqlTable;
 						sqlQuery.Insert.WithIdentity = true;
 
-						ei = new Query<object>(dataContext, null)
+						var ei = new Query<object>(dataContext, null)
 						{
-							Queries = { new Query<object>.QueryInfo { SelectQuery = sqlQuery, } }
+							Queries = { new Query<object>.QueryInfo { SelectQuery = sqlQuery, } },
 						};
+						var identityType = (Type)null;
 
 						foreach (var field in sqlTable.Fields)
 						{
@@ -713,6 +714,8 @@ namespace LinqToDB.Linq
 							}
 							else if (field.Value.IsIdentity)
 							{
+								identityType = field.Value.SystemType;
+
 								var sqlb = dataContext.CreateSqlProvider();
 								var expr = sqlb.GetIdentityExpression(sqlTable);
 
@@ -723,10 +726,14 @@ namespace LinqToDB.Linq
 
 						ei.SetScalarQuery<object>();
 
-						ObjectOperation<T>.InsertWithIdentity.Add(key, ei);
+						eix = new KeyValuePair<Type, Query<object>>(identityType, ei);
+						ObjectOperation<T>.InsertWithIdentity.Add(key, eix);
 					}
 
-			return ei.GetElement(null, dataContext, Expression.Constant(obj), null);
+			var result = eix.Value.GetElement(null, dataContext, Expression.Constant(obj), null);
+			if (eix.Key != null)
+				result = Convert.ChangeType(result, eix.Key);
+			return result;
 		}
 
 		#endregion
