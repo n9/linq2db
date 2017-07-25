@@ -215,10 +215,16 @@ namespace LinqToDB
 
 		#region Update
 
-		public static int Update<T>([NotNull] this IDataContext dataContext, T obj)
+		public static int Update<T, I>([NotNull] this IDataContext dataContext, T obj)
+			where T : I
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return Query<T>.Update(dataContext, obj);
+			return Query<T>.Update<I>(dataContext, obj);
+		}
+
+		public static int Update<T>([NotNull] this IDataContext dataContext, T obj)
+		{
+			return dataContext.Update<T, T>(obj);
 		}
 
 		#endregion

@@ -16,6 +16,7 @@ namespace LinqToDB.Linq
 	using Mapping;
 	using SqlQuery;
 	using SqlProvider;
+	using System.Reflection;
 
 	abstract class Query
 	{
@@ -904,8 +905,11 @@ namespace LinqToDB.Linq
 
 		#region Update
 
-		public static int Update(IDataContext dataContext, T obj)
+		public static int Update<I>(IDataContext dataContext, T obj)
 		{
+			if (!typeof(I).IsAssignableFrom(typeof(T)))
+				throw new LinqException("{0} must be assignable from {1}.".Args(typeof(I), typeof(T)));
+
 			if (Equals(default(T), obj))
 				return 0;
 
@@ -913,9 +917,9 @@ namespace LinqToDB.Linq
 
 			var key = new { dataContext.MappingSchema.ConfigurationID, dataContext.ContextID };
 
-			if (!ObjectOperation<T>.Update.TryGetValue(key, out ei))
-				lock (ObjectOperation<T>.Sync)
-					if (!ObjectOperation<T>.Update.TryGetValue(key, out ei))
+			if (!ObjectOperation<Tuple<T, I>>.Update.TryGetValue(key, out ei))
+				lock (ObjectOperation<Tuple<T, I>>.Sync)
+					if (!ObjectOperation<Tuple<T, I>>.Update.TryGetValue(key, out ei))
 					{
 						var sqlTable = new SqlTable<T>(dataContext.MappingSchema);
 						var sqlQuery = new SelectQuery { QueryType = QueryType.Update };
@@ -927,8 +931,15 @@ namespace LinqToDB.Linq
 							Queries = { new Query<int>.QueryInfo { SelectQuery = sqlQuery, } }
 						};
 
-						var keys   = sqlTable.GetKeys(true).Cast<SqlField>().ToList();
-						var fields = sqlTable.Fields.Values.Where(f => f.IsUpdatable).Except(keys).ToList();
+						var keys = sqlTable.GetKeys(true).Cast<SqlField>().ToList();
+
+						var fieldCollection = sqlTable.Fields.Values.Where(f => f.IsUpdatable).Except(keys);
+						if (typeof(T) != typeof(I))
+						{
+							var ifaceFields = typeof(I).GetMembers().ToLookup(m => m.Name);
+							fieldCollection = fieldCollection.Where(f => ifaceFields.Contains(f.ColumnDescriptor.MemberName));
+						}
+						var fields = fieldCollection.ToList();
 
 						if (fields.Count == 0)
 						{
@@ -965,7 +976,7 @@ namespace LinqToDB.Linq
 
 						ei.SetNonQueryQuery();
 
-						ObjectOperation<T>.Update.Add(key, ei);
+						ObjectOperation<Tuple<T, I>>.Update.Add(key, ei);
 					}
 
 			return (int)ei.GetElement(null, dataContext, Expression.Constant(obj), null);
