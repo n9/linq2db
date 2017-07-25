@@ -205,10 +205,16 @@ namespace LinqToDB
 
 		#region InsertWithIdentity
 
-		public static object InsertWithIdentity<T>([NotNull] this IDataContext dataContext, T obj)
+		public static object InsertWithIdentity<T, I>([NotNull] this IDataContext dataContext, T obj)
+			where T : I 
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return Query<T>.InsertWithIdentity(dataContext, obj);
+			return Query<T>.InsertWithIdentity<I>(dataContext, obj);
+		}
+
+		public static object InsertWithIdentity<T>([NotNull] this IDataContext dataContext, T obj)
+		{
+			return dataContext.InsertWithIdentity<T, T>(obj);
 		}
 
 		#endregion

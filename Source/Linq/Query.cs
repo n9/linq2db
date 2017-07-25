@@ -678,8 +678,11 @@ namespace LinqToDB.Linq
 
 		#region InsertWithIdentity
 
-		public static object InsertWithIdentity(IDataContext dataContext, T obj)
+		public static object InsertWithIdentity<I>(IDataContext dataContext, T obj)
 		{
+			if (!typeof(I).IsAssignableFrom(typeof(T)))
+				throw new LinqException("{0} must be assignable from {1}.".Args(typeof(I), typeof(T)));
+
 			if (Equals(default(T), obj))
 				return 0;
 
@@ -687,9 +690,9 @@ namespace LinqToDB.Linq
 
 			var key = new { dataContext.MappingSchema.ConfigurationID, dataContext.ContextID };
 
-			if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out eix))
-				lock (ObjectOperation<T>.Sync)
-					if (!ObjectOperation<T>.InsertWithIdentity.TryGetValue(key, out eix))
+			if (!ObjectOperation<Tuple<T, I>>.InsertWithIdentity.TryGetValue(key, out eix))
+				lock (ObjectOperation<Tuple<T, I>>.Sync)
+					if (!ObjectOperation<Tuple<T, I>>.InsertWithIdentity.TryGetValue(key, out eix))
 					{
 						var sqlTable = new SqlTable<T>(dataContext.MappingSchema);
 						var sqlQuery = new SelectQuery { QueryType = QueryType.Insert };
@@ -703,32 +706,39 @@ namespace LinqToDB.Linq
 						};
 						var identityType = (Type)null;
 
-						foreach (var field in sqlTable.Fields)
+						var fieldCollection = sqlTable.Fields.Values.AsEnumerable();
+						if (typeof(T) != typeof(I))
 						{
-							if (field.Value.IsInsertable)
+							var ifaceFields = typeof(I).GetMembers().ToLookup(m => m.Name);
+							fieldCollection = fieldCollection.Where(f => ifaceFields.Contains(f.ColumnDescriptor.MemberName));
+						}
+
+						foreach (var field in fieldCollection)
+						{
+							if (field.IsInsertable)
 							{
-								var param = GetParameter(dataContext, field.Value);
+								var param = GetParameter(dataContext, field);
 
 								ei.Queries[0].Parameters.Add(param);
 
-								sqlQuery.Insert.Items.Add(new SelectQuery.SetExpression(field.Value, param.SqlParameter));
+								sqlQuery.Insert.Items.Add(new SelectQuery.SetExpression(field, param.SqlParameter));
 							}
-							else if (field.Value.IsIdentity)
+							else if (field.IsIdentity)
 							{
-								identityType = field.Value.SystemType;
+								identityType = field.SystemType;
 
 								var sqlb = dataContext.CreateSqlProvider();
 								var expr = sqlb.GetIdentityExpression(sqlTable);
 
 								if (expr != null)
-									sqlQuery.Insert.Items.Add(new SelectQuery.SetExpression(field.Value, expr));
+									sqlQuery.Insert.Items.Add(new SelectQuery.SetExpression(field, expr));
 							}
 						}
 
 						ei.SetScalarQuery<object>();
 
 						eix = new KeyValuePair<Type, Query<object>>(identityType, ei);
-						ObjectOperation<T>.InsertWithIdentity.Add(key, eix);
+						ObjectOperation<Tuple<T, I>>.InsertWithIdentity.Add(key, eix);
 					}
 
 			var result = eix.Value.GetElement(null, dataContext, Expression.Constant(obj), null);
