@@ -212,6 +212,13 @@ namespace LinqToDB.Extensions
 #endif
 		}
 
+		public static IEnumerable<PropertyInfo> GetAllInterfacePropertiesEx(this Type type)
+		{
+			var types = type.GetInterfacesEx().ToList();
+			types.Add(type);
+			return types.SelectMany(t => t.GetPropertiesEx());
+		}
+
 		public static MemberInfo[] GetPublicInstanceMembersEx(this Type type)
 		{
 #if NETFX_CORE

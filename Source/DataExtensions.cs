@@ -267,7 +267,7 @@ namespace LinqToDB
 		public static object InsertWithIdentity<T>([NotNull] this IDataContext dataContext, T obj)
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return QueryRunner.InsertWithIdentity<T>.Query(dataContext, obj);
+			return QueryRunner.InsertWithIdentity<T, T>.Query(dataContext, obj);
 		}
 
 		/// <summary>
@@ -279,9 +279,13 @@ namespace LinqToDB
 		/// <param name="obj">Object with data to insert.</param>
 		/// <returns>Inserted record's identity value.</returns>
 		public static int InsertWithInt32Identity<T>([NotNull] this IDataContext dataContext, T obj)
+			=> dataContext.InsertWithInt32Identity<T, T>(obj);
+
+		public static int InsertWithInt32Identity<T, I>([NotNull] this IDataContext dataContext, T obj)
+			where T : I
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return dataContext.MappingSchema.ChangeTypeTo<int>(QueryRunner.InsertWithIdentity<T>.Query(dataContext, obj));
+			return dataContext.MappingSchema.ChangeTypeTo<int>(QueryRunner.InsertWithIdentity<T, I>.Query(dataContext, obj));
 		}
 
 		/// <summary>
@@ -295,7 +299,7 @@ namespace LinqToDB
 		public static long InsertWithInt64Identity<T>([NotNull] this IDataContext dataContext, T obj)
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return dataContext.MappingSchema.ChangeTypeTo<long>(QueryRunner.InsertWithIdentity<T>.Query(dataContext, obj));
+			return dataContext.MappingSchema.ChangeTypeTo<long>(QueryRunner.InsertWithIdentity<T, T>.Query(dataContext, obj));
 		}
 
 		/// <summary>
@@ -309,7 +313,7 @@ namespace LinqToDB
 		public static decimal InsertWithDecimalIdentity<T>([NotNull] this IDataContext dataContext, T obj)
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return dataContext.MappingSchema.ChangeTypeTo<decimal>(QueryRunner.InsertWithIdentity<T>.Query(dataContext, obj));
+			return dataContext.MappingSchema.ChangeTypeTo<decimal>(QueryRunner.InsertWithIdentity<T, T>.Query(dataContext, obj));
 		}
 
 #if !NOASYNC
@@ -327,7 +331,7 @@ namespace LinqToDB
 			[NotNull] this IDataContext dataContext, T obj, CancellationToken token = default(CancellationToken))
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return QueryRunner.InsertWithIdentity<T>.QueryAsync(dataContext, obj, token);
+			return QueryRunner.InsertWithIdentity<T, T>.QueryAsync(dataContext, obj, token);
 		}
 
 		/// <summary>
@@ -344,7 +348,7 @@ namespace LinqToDB
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
 
-			var ret = await QueryRunner.InsertWithIdentity<T>.QueryAsync(dataContext, obj, token);
+			var ret = await QueryRunner.InsertWithIdentity<T, T>.QueryAsync(dataContext, obj, token);
 			return dataContext.MappingSchema.ChangeTypeTo<int>(ret);
 		}
 
@@ -362,7 +366,7 @@ namespace LinqToDB
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
 
-			var ret = await QueryRunner.InsertWithIdentity<T>.QueryAsync(dataContext, obj, token);
+			var ret = await QueryRunner.InsertWithIdentity<T, T>.QueryAsync(dataContext, obj, token);
 			return dataContext.MappingSchema.ChangeTypeTo<long>(ret);
 		}
 
@@ -380,7 +384,7 @@ namespace LinqToDB
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
 
-			var ret = await QueryRunner.InsertWithIdentity<T>.QueryAsync(dataContext, obj, token);
+			var ret = await QueryRunner.InsertWithIdentity<T, T>.QueryAsync(dataContext, obj, token);
 			return dataContext.MappingSchema.ChangeTypeTo<decimal>(ret);
 		}
 
@@ -399,9 +403,13 @@ namespace LinqToDB
 		/// <param name="obj">Object with data to update.</param>
 		/// <returns>Number of affected records.</returns>
 		public static int Update<T>([NotNull] this IDataContext dataContext, T obj)
+			=> dataContext.Update<T, T>(obj);
+
+		public static int Update<T, I>([NotNull] this IDataContext dataContext, T obj)
+			where T : I
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return QueryRunner.Update<T>.Query(dataContext, obj);
+			return QueryRunner.Update<T, I>.Query(dataContext, obj);
 		}
 
 #if !NOASYNC
@@ -419,7 +427,7 @@ namespace LinqToDB
 			[NotNull] this IDataContext dataContext, T obj, CancellationToken token = default(CancellationToken))
 		{
 			if (dataContext == null) throw new ArgumentNullException("dataContext");
-			return QueryRunner.Update<T>.QueryAsync(dataContext, obj, token);
+			return QueryRunner.Update<T, T>.QueryAsync(dataContext, obj, token);
 		}
 
 #endif

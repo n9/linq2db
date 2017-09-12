@@ -9,11 +9,15 @@ using System.Threading.Tasks;
 
 namespace LinqToDB.Linq
 {
+	using Common;
+	using LinqToDB.Extensions;
 	using SqlQuery;
+	using System.Linq;
 
 	static partial class QueryRunner
 	{
-		public static class InsertWithIdentity<T>
+		public static class InsertWithIdentity<T, I>
+			where T : I
 		{
 			static readonly ConcurrentDictionary<object,Query<object>> _queryChache = new ConcurrentDictionary<object,Query<object>>();
 
@@ -30,7 +34,14 @@ namespace LinqToDB.Linq
 					Queries = { new QueryInfo { SelectQuery = sqlQuery, } }
 				};
 
-				foreach (var field in sqlTable.Fields)
+				var fields = sqlTable.Fields.AsEnumerable();
+				if (typeof(T) != typeof(I))
+				{
+					var ifaceFields = typeof(I).GetAllInterfacePropertiesEx().ToLookup(m => m.Name);
+					fields = fields.Where(f => ifaceFields.Contains(f.Value.ColumnDescriptor.MemberName));
+				}
+
+				foreach (var field in fields)
 				{
 					if (field.Value.IsInsertable)
 					{

@@ -11,11 +11,13 @@ using System.Threading.Tasks;
 namespace LinqToDB.Linq
 {
 	using Common;
+	using LinqToDB.Extensions;
 	using SqlQuery;
 
 	static partial class QueryRunner
 	{
-		public static class Update<T>
+		public static class Update<T, I>
+			where T : I
 		{
 			static readonly ConcurrentDictionary<object,Query<int>> _queryChache = new ConcurrentDictionary<object,Query<int>>();
 
@@ -33,6 +35,12 @@ namespace LinqToDB.Linq
 
 				var keys   = sqlTable.GetKeys(true).Cast<SqlField>().ToList();
 				var fields = sqlTable.Fields.Values.Where(f => f.IsUpdatable).Except(keys).ToList();
+
+				if (typeof(T) != typeof(I))
+				{
+					var ifaceFields = typeof(I).GetAllInterfacePropertiesEx().ToLookup(m => m.Name);
+					fields.RemoveAll(f => !ifaceFields.Contains(f.ColumnDescriptor.MemberName));
+				}
 
 				if (fields.Count == 0)
 				{
